@@ -1,0 +1,606 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CuteBoy Live — ยอดขายไลฟ์</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+:root{
+  --paper:#F2F4F7; --panel:#FFFFFF; --ink:#1A1F2B; --muted:#626B7D; --line:#D9DEE7;
+  --onair:#D7263D; --net:#1F7A66; --camp:#5B4BC4; --warn:#B7791F; --soft:#E8ECF2;
+  --r-sm:6px; --r-lg:14px;
+  --font:"IBM Plex Sans Thai",system-ui,-apple-system,"Segoe UI",Tahoma,sans-serif;
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--paper);color:var(--ink);font:15px/1.6 var(--font);font-variant-numeric:tabular-nums}
+button,input,select,textarea{font:inherit;color:inherit}
+a{color:inherit}
+:focus-visible{outline:2px solid var(--camp);outline-offset:2px}
+
+/* header */
+.top{position:sticky;top:0;z-index:20;background:var(--ink);color:#fff}
+.top-in{max-width:1240px;margin:0 auto;padding:12px 20px;display:flex;flex-wrap:wrap;gap:12px 20px;align-items:center}
+.brand{display:flex;align-items:center;gap:10px;font-weight:700;font-size:18px;letter-spacing:.2px;margin-right:auto}
+.dot{width:10px;height:10px;border-radius:50%;background:var(--onair);box-shadow:0 0 0 4px rgba(215,38,61,.25)}
+.filters{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.filters select,.filters label{background:#2A3142;border:1px solid #3A4358;border-radius:var(--r-sm);padding:6px 10px;color:#fff}
+.filters label{display:flex;gap:6px;align-items:center;cursor:pointer}
+.nav{max-width:1240px;margin:0 auto;padding:0 20px;display:flex;gap:2px;overflow-x:auto}
+.nav button{background:none;border:0;color:#B8C0D0;padding:10px 14px;cursor:pointer;border-bottom:3px solid transparent;white-space:nowrap}
+.nav button[aria-selected="true"]{color:#fff;border-bottom-color:var(--onair)}
+main{max-width:1240px;margin:0 auto;padding:24px 20px 60px}
+section[hidden]{display:none}
+
+/* type */
+h2{font-size:22px;line-height:1.3;margin:0 0 4px;font-weight:700}
+h3{font-size:16px;margin:0 0 12px;font-weight:600}
+.sub{color:var(--muted);margin:0 0 20px}
+.muted{color:var(--muted)}
+
+/* KPI strip */
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));background:var(--panel);border:1px solid var(--line);border-radius:var(--r-lg);overflow:hidden;margin-bottom:20px}
+.kpi{padding:14px 18px;border-right:1px solid var(--line)}
+.kpi:last-child{border-right:0}
+.kpi b{display:block;font-size:26px;line-height:1.2;font-weight:700}
+.kpi span{color:var(--muted);font-size:13px}
+.kpi.hero b{font-size:32px;color:var(--net)}
+
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:var(--r-lg);padding:18px 20px;margin-bottom:20px}
+.grid2{display:grid;grid-template-columns:3fr 2fr;gap:20px}
+@media (max-width:900px){.grid2{grid-template-columns:1fr}}
+
+/* broadcast log */
+.log-head{display:flex;flex-wrap:wrap;justify-content:space-between;gap:8px;align-items:baseline}
+.legend{display:flex;gap:14px;font-size:13px;color:var(--muted)}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:6px;vertical-align:middle}
+.chart-wrap{position:relative;height:280px}
+
+/* tables */
+.tbl-wrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:14px}
+th,td{padding:8px 10px;text-align:left;border-bottom:1px solid var(--soft);white-space:nowrap}
+th{font-weight:600;color:var(--muted);font-size:13px;cursor:pointer;user-select:none;position:sticky;top:0;background:var(--panel)}
+td.n,th.n{text-align:right}
+tbody tr:hover{background:#F7F9FC}
+tr.click{cursor:pointer}
+.wrap{white-space:normal;min-width:220px}
+.tag{display:inline-block;font-size:12px;padding:1px 8px;border-radius:99px;background:var(--soft);color:var(--ink)}
+.tag.camp{background:#ECE9FA;color:var(--camp)}
+.tag.warn{background:#FBF1DE;color:var(--warn)}
+.tag.red{background:#FBE5E8;color:var(--onair)}
+.bar{height:6px;background:var(--soft);border-radius:3px;min-width:80px}
+.bar>i{display:block;height:100%;background:var(--net);border-radius:3px}
+
+/* forms */
+.form{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px 16px}
+.field{display:flex;flex-direction:column;gap:4px}
+.field label{font-size:13px;color:var(--muted)}
+.field input,.field select,.field textarea{border:1px solid var(--line);border-radius:var(--r-sm);padding:8px 10px;background:#fff}
+.field textarea{min-height:80px;resize:vertical}
+.full{grid-column:1/-1}
+.checks{display:flex;flex-wrap:wrap;gap:6px}
+.checks label{border:1px solid var(--line);border-radius:99px;padding:3px 12px;cursor:pointer;font-size:13px;background:#fff}
+.checks input{display:none}
+.checks label:has(input:checked){background:var(--ink);color:#fff;border-color:var(--ink)}
+.btn{background:var(--ink);color:#fff;border:0;border-radius:var(--r-sm);padding:9px 18px;cursor:pointer;font-weight:600}
+.btn.ghost{background:transparent;color:var(--ink);border:1px solid var(--line)}
+.btn:disabled{opacity:.5;cursor:default}
+.row{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.msg{padding:10px 14px;border-radius:var(--r-sm);margin-top:12px}
+.msg.ok{background:#E3F2EC;color:#145A49}
+.msg.err{background:#FBE5E8;color:#8F1426}
+.drop{border:2px dashed var(--line);border-radius:var(--r-lg);padding:28px;text-align:center;background:#FAFBFD;cursor:pointer}
+.drop.over{border-color:var(--camp);background:#F3F1FC}
+
+/* drawer */
+.drawer{position:fixed;inset:0;background:rgba(20,24,34,.45);display:flex;justify-content:flex-end;z-index:50}
+.drawer[hidden]{display:none}
+.drawer-in{background:var(--paper);width:min(760px,100%);height:100%;overflow-y:auto;padding:22px 24px;animation:slide .18s ease-out}
+@keyframes slide{from{transform:translateX(24px);opacity:.6}to{transform:none;opacity:1}}
+@media (prefers-reduced-motion:reduce){.drawer-in{animation:none}}
+.drawer-top{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:14px}
+.x{background:none;border:1px solid var(--line);border-radius:var(--r-sm);width:36px;height:36px;cursor:pointer;font-size:18px}
+dl.kv{display:grid;grid-template-columns:auto 1fr;gap:4px 16px;margin:0}
+dl.kv dt{color:var(--muted)}
+dl.kv dd{margin:0}
+
+.state{padding:60px 20px;text-align:center;color:var(--muted)}
+.setup{max-width:640px;margin:40px auto}
+.setup code{background:var(--soft);padding:2px 6px;border-radius:4px}
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="top-in">
+    <div class="brand"><span class="dot" aria-hidden="true"></span>CuteBoy Live</div>
+    <div class="filters">
+      <select id="fMonth" aria-label="ช่วงเวลา"></select>
+      <select id="fPlat" aria-label="ช่องทาง"><option value="">ทุกช่องทาง</option></select>
+      <label><input type="checkbox" id="fCamp"> ไม่นับ Live แคมเปญ</label>
+    </div>
+  </div>
+  <nav class="nav" role="tablist">
+    <button role="tab" data-tab="overview" aria-selected="true">ภาพรวม</button>
+    <button role="tab" data-tab="lives" aria-selected="false">รายการ Live</button>
+    <button role="tab" data-tab="products" aria-selected="false">สินค้า</button>
+    <button role="tab" data-tab="record" aria-selected="false">บันทึก Live</button>
+    <button role="tab" data-tab="import" aria-selected="false">นำเข้ายอดขาย</button>
+  </nav>
+</header>
+
+<main id="app">
+  <div class="state" id="loading">กำลังโหลดข้อมูลจาก Google Sheet…</div>
+
+  <!-- OVERVIEW -->
+  <section id="tab-overview" hidden>
+    <div class="kpis" id="kpis"></div>
+    <div class="panel">
+      <div class="log-head">
+        <h3>ยอดขายแต่ละ Live</h3>
+        <div class="legend"><span><i style="background:var(--net)"></i>Live ปกติ</span><span><i style="background:var(--camp)"></i>Live แคมเปญ</span><span><i style="background:var(--onair)"></i>Median</span></div>
+      </div>
+      <div class="chart-wrap"><canvas id="chLives" aria-label="ยอดขายสุทธิแต่ละ Live"></canvas></div>
+      <p class="muted" style="margin:8px 0 0;font-size:13px">กดแท่งเพื่อดูรายละเอียด Live</p>
+    </div>
+    <div class="grid2">
+      <div class="panel"><h3>สินค้าทำยอดสูงสุด</h3><div class="tbl-wrap" id="topProducts"></div></div>
+      <div class="panel">
+        <h3>ลักษณะการซื้อ</h3>
+        <dl class="kv" id="mix"></dl>
+      </div>
+    </div>
+  </section>
+
+  <!-- LIVES -->
+  <section id="tab-lives" hidden>
+    <h2>รายการ Live</h2>
+    <p class="sub">กดที่แถวเพื่อดูสินค้าที่ขายได้ ออเดอร์ และ Review ของ Live นั้น</p>
+    <div class="panel"><div class="tbl-wrap" id="liveTable"></div></div>
+  </section>
+
+  <!-- PRODUCTS -->
+  <section id="tab-products" hidden>
+    <h2>สินค้า</h2>
+    <p class="sub">รวมยอดตามสินค้าหลักใน Shopify — สินค้าตำหนิ / Show / Demo นับรวมกับสินค้าดีตัวเดียวกัน</p>
+    <div class="row" style="margin-bottom:12px"><div class="field" style="flex:1;max-width:360px"><input id="pSearch" type="search" placeholder="ค้นหาชื่อสินค้า" aria-label="ค้นหาชื่อสินค้า"></div></div>
+    <div class="panel"><div class="tbl-wrap" id="productTable"></div></div>
+  </section>
+
+  <!-- RECORD -->
+  <section id="tab-record" hidden>
+    <h2>บันทึก Live</h2>
+    <p class="sub">สร้าง Live ก่อนเริ่ม แล้วกลับมาใส่เวลาจบ ยอดผู้ชม และ Review หลังจบ Live — ยอดขายไม่ต้องกรอก ระบบดึงจากการนำเข้า</p>
+    <div class="panel">
+      <h3>ข้อมูล Live</h3>
+      <div class="form">
+        <div class="field"><label for="lvPick">Live</label><select id="lvPick"><option value="">+ สร้าง Live ใหม่</option></select></div>
+        <div class="field"><label for="lvPlat">ช่องทาง</label><select id="lvPlat"></select></div>
+        <div class="field"><label for="lvDate">วันที่</label><input id="lvDate" type="date"></div>
+        <div class="field"><label for="lvStart">เวลาเริ่ม</label><input id="lvStart" type="time"></div>
+        <div class="field"><label for="lvEnd">เวลาจบ</label><input id="lvEnd" type="time"></div>
+        <div class="field"><label for="lvHost">Host</label><select id="lvHost"><option value="">—</option></select></div>
+        <div class="field"><label for="lvCamp">แคมเปญ</label><select id="lvCamp"><option value="">ไม่มี</option></select></div>
+        <div class="field"><label for="lvTarget">เป้ายอดขาย (บาท)</label><input id="lvTarget" type="number" min="0" step="100"></div>
+        <div class="field"><label for="lvViewers">ผู้ชมทั้งหมด</label><input id="lvViewers" type="number" min="0" placeholder="ว่าง = ไม่มีข้อมูล"></div>
+        <div class="field"><label for="lvPeak">ผู้ชมสูงสุดพร้อมกัน</label><input id="lvPeak" type="number" min="0" placeholder="ว่าง = ไม่มีข้อมูล"></div>
+        <div class="field"><label for="lvComments">คอมเมนต์</label><input id="lvComments" type="number" min="0" placeholder="ว่าง = ไม่มีข้อมูล"></div>
+        <div class="field"><label for="lvShares">แชร์</label><input id="lvShares" type="number" min="0" placeholder="ว่าง = ไม่มีข้อมูล"></div>
+        <div class="field"><label for="lvFollowers">ผู้ติดตามใหม่</label><input id="lvFollowers" type="number" min="0" placeholder="ว่าง = ไม่มีข้อมูล"></div>
+        <div class="field"><label for="lvStatus">สถานะ</label><select id="lvStatus"></select></div>
+        <div class="field full"><label for="lvNotes">หมายเหตุ</label><input id="lvNotes"></div>
+      </div>
+      <p class="muted" style="font-size:13px">ช่องที่ไม่มีข้อมูลให้เว้นว่าง ระบบจะบันทึกเป็น N/A — ห้ามใส่ 0 แทน เพราะ 0 หมายถึงวัดแล้วได้ศูนย์</p>
+      <div class="row"><button class="btn" id="lvSave">บันทึก Live</button></div>
+      <div id="lvMsg"></div>
+    </div>
+    <div class="panel">
+      <h3>Review หลัง Live</h3>
+      <div class="form">
+        <div class="field"><label for="rvLive">Live</label><select id="rvLive"></select></div>
+        <div class="field"><label for="rvBy">ผู้ Review</label><input id="rvBy"></div>
+        <div class="field full"><label for="rvWorked">อะไรได้ผล</label><textarea id="rvWorked"></textarea></div>
+        <div class="field full"><label for="rvDidnt">อะไรไม่ได้ผล</label><textarea id="rvDidnt"></textarea></div>
+        <div class="field full"><label>ลูกค้าถามเรื่องอะไร</label><div class="checks" id="rvQ"></div></div>
+        <div class="field full"><label>ปัญหาที่เจอ</label><div class="checks" id="rvP"></div></div>
+        <div class="field full"><label for="rvNext">Live ครั้งหน้าจะลองอะไร</label><textarea id="rvNext"></textarea></div>
+      </div>
+      <div class="row" style="margin-top:12px"><button class="btn" id="rvSave">บันทึก Review</button></div>
+      <div id="rvMsg"></div>
+    </div>
+  </section>
+
+  <!-- IMPORT -->
+  <section id="tab-import" hidden>
+    <h2>นำเข้ายอดขาย</h2>
+    <p class="sub">ใช้ไฟล์ export จากระบบสร้างออเดอร์ได้เลยโดยไม่ต้องแก้ SKU — นำเข้าไฟล์ช่วงวันที่ทับกันได้ ระบบจะไม่นับซ้ำ</p>
+    <div class="panel">
+      <label class="drop" id="drop" for="file">
+        <strong>เลือกไฟล์ .xlsx</strong><br><span class="muted">หรือลากไฟล์มาวางตรงนี้</span>
+      </label>
+      <input type="file" id="file" accept=".xlsx,.xls,.csv" hidden>
+      <div id="preview"></div>
+    </div>
+    <div class="panel">
+      <h3>SKU ที่ยังไม่จับคู่</h3>
+      <p class="muted" style="margin-top:-6px">ใส่รหัส Shopify ของสินค้าดี แล้วเลือกสภาพสินค้า ยอดจะย้ายไปรวมกับสินค้านั้นทันที</p>
+      <div class="tbl-wrap" id="unmapped"></div>
+      <div id="mapMsg"></div>
+    </div>
+    <div class="panel" id="lowPanel">
+      <h3>SKU ที่จับคู่แบบไม่มั่นใจ</h3>
+      <div class="tbl-wrap" id="lowConf"></div>
+    </div>
+  </section>
+</main>
+
+<div class="drawer" id="drawer" hidden>
+  <div class="drawer-in" role="dialog" aria-modal="true" aria-labelledby="dwTitle">
+    <div class="drawer-top"><div><h2 id="dwTitle"></h2><div id="dwSub" class="muted"></div></div><button class="x" id="dwClose" aria-label="ปิด">×</button></div>
+    <div id="dwBody"></div>
+  </div>
+</div>
+
+<script>
+/* ======= ตั้งค่า: วาง URL ของ Apps Script Web App ตรงนี้ ======= */
+const API_URL = 'https://script.google.com/macros/s/AKfycbzUeQopGN0bU5GV-qXcjzNzzkS_UqArcomOmrx2wKP2InBBI4OXeqR4Nxa2uAstnwzE/exec';
+/* ============================================================ */
+
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const fmt = n => n == null || isNaN(n) ? '—' : Math.round(n).toLocaleString('th-TH');
+const baht = n => n == null || isNaN(n) ? '—' : '฿' + fmt(n);
+const pct = n => n == null || isNaN(n) ? '—' : (n * 100).toFixed(0) + '%';
+const median = a => { if (!a.length) return null; const s = [...a].sort((x, y) => x - y), m = s.length >> 1; return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2; };
+const TH_MONTH = ['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
+const dThai = iso => { if (!iso) return '—'; const [y, m, d] = iso.split('-'); return `${+d} ${TH_MONTH[+m - 1]}`; };
+
+let DATA = null, LINES = [], chart = null;
+
+async function api(method, body) {
+  const url = new URL(API_URL);
+  if (method === 'GET') {
+    url.searchParams.set('action', 'dashboard');
+    if (body && body.nocache) url.searchParams.set('nocache', '1');
+    const r = await fetch(url); return r.json();
+  }
+  if (DATA && DATA.editPin && !sessionStorage.getItem('pin')) {
+    const p = prompt('ใส่ PIN สำหรับบันทึกข้อมูล'); if (!p) throw new Error('ยกเลิกการบันทึก'); sessionStorage.setItem('pin', p);
+  }
+  const r = await fetch(API_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+    body: JSON.stringify(Object.assign({ pin: sessionStorage.getItem('pin') || '' }, body)) });
+  const j = await r.json();
+  if (!j.ok && /PIN/.test(j.error || '')) sessionStorage.removeItem('pin');
+  if (!j.ok) throw new Error(j.error || 'บันทึกไม่สำเร็จ');
+  return j;
+}
+
+async function load(force) {
+  if (API_URL.startsWith('PASTE')) {
+    $('#loading').outerHTML = `<div class="setup panel"><h2>ยังไม่ได้เชื่อม Google Sheet</h2><p>เปิดไฟล์ <code>index.html</code> แล้ววาง URL ของ Apps Script Web App ในบรรทัด <code>const API_URL</code> จากนั้น push ขึ้น GitHub อีกครั้ง</p></div>`;
+    return;
+  }
+  try {
+    const d = await api('GET', { nocache: force });
+    if (!d.ok) throw new Error(d.error);
+    DATA = d;
+    LINES = d.lines.map(a => Object.fromEntries(d.lineCols.map((c, i) => [c, a[i]])));
+    const L = $('#loading'); if (L) L.remove();
+    initFilters(); initForms(); render();
+    showTab(location.hash.slice(1) || 'overview');
+  } catch (e) {
+    const L = $('#loading'); if (L) L.textContent = 'โหลดข้อมูลไม่สำเร็จ: ' + e.message + ' — ตรวจว่า Web App ตั้งค่าให้ Anyone เข้าถึงได้';
+  }
+}
+
+/* ---------- filters ---------- */
+function initFilters() {
+  const months = [...new Set(DATA.sessions.map(s => (s.date || '').slice(0, 7)).filter(Boolean))].sort().reverse();
+  const cur = $('#fMonth').value;
+  $('#fMonth').innerHTML = '<option value="">ทุกเดือน</option>' + months.map(m => `<option value="${m}">${TH_MONTH[+m.slice(5) - 1]} ${+m.slice(0, 4) + 543}</option>`).join('');
+  $('#fMonth').value = cur;
+  const plats = [...new Set(DATA.sessions.map(s => s.platform).filter(Boolean))];
+  const cp = $('#fPlat').value;
+  $('#fPlat').innerHTML = '<option value="">ทุกช่องทาง</option>' + plats.map(p => `<option>${esc(p)}</option>`).join('');
+  $('#fPlat').value = cp;
+}
+['#fMonth', '#fPlat', '#fCamp'].forEach(s => document.addEventListener('change', e => { if (e.target.matches(s)) render(); }));
+
+const campName = id => (DATA.campaigns.find(c => c.id === id) || {}).name || id;
+function filteredSessions() {
+  const m = $('#fMonth').value, p = $('#fPlat').value, nc = $('#fCamp').checked;
+  return DATA.sessions.filter(s => (!m || (s.date || '').startsWith(m)) && (!p || s.platform === p) && (!nc || !s.campaign))
+    .sort((a, b) => (a.date || '').localeCompare(b.date || '') || a.id.localeCompare(b.id));
+}
+
+/* ---------- calculations ---------- */
+function stats(sessions) {
+  const ids = new Set(sessions.map(s => s.id));
+  const lines = LINES.filter(l => ids.has(l.live));
+  const orderUnits = {}; LINES.forEach(l => orderUnits[l.order] = (orderUnits[l.order] || 0) + l.qty);
+  const per = {};
+  sessions.forEach(s => per[s.id] = { s, orders: new Set(), customers: new Set(), units: 0, net: 0, free: 0 });
+  lines.forEach(l => { const p = per[l.live]; p.orders.add(l.order); p.customers.add(l.customer); p.units += l.qty; p.net += l.net; if (!l.price) p.free += l.qty; });
+  Object.values(per).forEach(p => {
+    p.nOrders = p.orders.size; p.aov = p.nOrders ? p.net / p.nOrders : null;
+    p.multi = [...p.orders].filter(o => orderUnits[o] > 1).length;
+    p.multiPct = p.nOrders ? p.multi / p.nOrders : null;
+    const dur = p.s.start && p.s.end && /:/.test(p.s.start) && /:/.test(p.s.end) ? (toMin(p.s.end) - toMin(p.s.start)) / 60 : null;
+    p.perHour = dur > 0 ? p.net / dur : null; p.hours = dur;
+  });
+  const orders = new Set(lines.map(l => l.order)), custs = {};
+  lines.forEach(l => (custs[l.customer] = custs[l.customer] || new Set()).add(l.live));
+  const net = lines.reduce((a, l) => a + l.net, 0);
+  return { lines, per, net, orders: orders.size, units: lines.reduce((a, l) => a + l.qty, 0),
+    free: lines.filter(l => !l.price).reduce((a, l) => a + l.qty, 0),
+    multi: [...orders].filter(o => orderUnits[o] > 1).length,
+    customers: Object.keys(custs).length, repeat: Object.values(custs).filter(s => s.size > 1).length,
+    medianLive: median(Object.values(per).map(p => p.net)) };
+}
+const toMin = t => { const [h, m] = t.split(':').map(Number); return h * 60 + m; };
+function byProduct(lines) {
+  const g = {};
+  lines.forEach(l => {
+    const k = l.product; const x = g[k] = g[k] || { product: k, mapped: !!l.baseSku, units: 0, normal: 0, other: 0, free: 0, net: 0, lives: new Set(), sizes: {} };
+    x.units += l.qty; x.net += l.net; x.lives.add(l.live);
+    if (l.condition === 'Normal') x.normal += l.qty; else x.other += l.qty;
+    if (!l.price) x.free += l.qty;
+    if (l.size) x.sizes[l.size] = (x.sizes[l.size] || 0) + l.qty;
+  });
+  return Object.values(g).map(x => Object.assign(x, { paidUnits: x.units - x.free, avg: (x.units - x.free) ? x.net / (x.units - x.free) : null, nLives: x.lives.size }))
+    .sort((a, b) => b.net - a.net);
+}
+
+/* ---------- render ---------- */
+function render() {
+  const S = filteredSessions(), st = stats(S);
+  $('#kpis').innerHTML = [
+    ['hero', baht(st.net), 'ยอดขายสุทธิ (ไม่รวมค่าส่ง)'],
+    ['', fmt(S.length), 'Live'],
+    ['', fmt(st.orders), 'ออเดอร์'],
+    ['', baht(st.orders ? st.net / st.orders : null), 'ยอดต่อออเดอร์ (AOV)'],
+    ['', baht(st.medianLive), 'ยอดกลางต่อ Live (Median)'],
+    ['', pct(st.orders ? st.multi / st.orders : null), 'ออเดอร์ที่ซื้อมากกว่า 1 ชิ้น'],
+  ].map(([c, v, l]) => `<div class="kpi ${c}"><b>${v}</b><span>${l}</span></div>`).join('');
+
+  // chart
+  const per = S.map(s => st.per[s.id]);
+  if (chart) chart.destroy();
+  chart = new Chart($('#chLives'), {
+    type: 'bar',
+    data: { labels: per.map(p => dThai(p.s.date)), datasets: [
+      { data: per.map(p => Math.round(p.net)), backgroundColor: per.map(p => p.s.campaign ? '#5B4BC4' : '#1F7A66'), borderRadius: 3, maxBarThickness: 38 },
+      { type: 'line', data: per.map(() => st.medianLive), borderColor: '#D7263D', borderWidth: 1.5, borderDash: [5, 4], pointRadius: 0 } ] },
+    options: { maintainAspectRatio: false, animation: false,
+      plugins: { legend: { display: false }, tooltip: { filter: i => i.datasetIndex === 0, callbacks: {
+        title: i => per[i[0].dataIndex].s.id + (per[i[0].dataIndex].s.campaign ? ' · ' + campName(per[i[0].dataIndex].s.campaign) : ''),
+        label: i => { const p = per[i.dataIndex]; return [`ยอดสุทธิ ${baht(p.net)}`, `${p.nOrders} ออเดอร์ · ${p.units} ชิ้น`]; } } } },
+      scales: { y: { ticks: { callback: v => v >= 1000 ? (v / 1000) + 'K' : v }, grid: { color: '#EEF1F5' } }, x: { grid: { display: false } } },
+      onClick: (e, els) => { const el = els.find(x => x.datasetIndex === 0); if (el) openLive(per[el.index].s.id); },
+      onHover: (e, els) => e.native.target.style.cursor = els.length ? 'pointer' : 'default' }
+  });
+
+  // top products
+  const prods = byProduct(st.lines), maxNet = prods.length ? prods[0].net : 1;
+  $('#topProducts').innerHTML = table(['สินค้า', 'ชิ้น', 'ยอดสุทธิ', ''], prods.slice(0, 10).map(p =>
+    `<tr><td class="wrap">${esc(p.product)}${p.mapped ? '' : ' <span class="tag warn">ยังไม่จับคู่</span>'}</td><td class="n">${fmt(p.units)}</td><td class="n">${baht(p.net)}</td><td><div class="bar"><i style="width:${Math.max(2, p.net / maxNet * 100)}%"></i></div></td></tr>`), [false, true, true, false]);
+
+  const cond = {}; st.lines.forEach(l => cond[l.condition] = (cond[l.condition] || 0) + l.qty);
+  $('#mix').innerHTML = [
+    ['ชิ้นต่อออเดอร์', st.orders ? (st.units / st.orders).toFixed(2) : '—'],
+    ['ของแถม (ราคา 0)', `${fmt(st.free)} ชิ้น (${pct(st.units ? st.free / st.units : null)})`],
+    ['สินค้าตำหนิ / Show / Demo', `${fmt((cond.Defect || 0) + (cond.Show || 0) + (cond.Demo || 0))} ชิ้น`],
+    ['ลูกค้าทั้งหมด', fmt(st.customers) + ' คน'],
+    ['ซื้อมากกว่า 1 Live', `${fmt(st.repeat)} คน (${pct(st.customers ? st.repeat / st.customers : null)})`],
+    ['ข้อมูลล่าสุด', esc(DATA.generatedAt) + ' <button class="btn ghost" style="padding:2px 10px;font-size:13px;margin-left:6px" onclick="reload()">โหลดใหม่</button>'],
+  ].map(([k, v]) => `<dt>${k}</dt><dd>${v}</dd>`).join('');
+
+  // live table
+  const rows = [...per].reverse().map(p => {
+    const s = p.s, reviewed = !!s.review;
+    return `<tr class="click" data-live="${esc(s.id)}" tabindex="0"><td>${dThai(s.date)}</td><td>${esc(s.id)}</td><td>${esc(s.platform || '')}</td>
+      <td>${s.campaign ? `<span class="tag camp">${esc(campName(s.campaign))}</span>` : ''}</td>
+      <td class="n">${fmt(p.nOrders)}</td><td class="n">${fmt(p.units)}</td><td class="n">${baht(p.net)}</td><td class="n">${baht(p.aov)}</td>
+      <td class="n">${pct(p.multiPct)}</td><td class="n">${p.perHour ? baht(p.perHour) : '—'}</td>
+      <td>${reviewed ? '<span class="tag">Review แล้ว</span>' : '<span class="tag warn">ยังไม่ Review</span>'}</td></tr>`;
+  });
+  $('#liveTable').innerHTML = table(['วันที่', 'Live', 'ช่องทาง', 'แคมเปญ', 'ออเดอร์', 'ชิ้น', 'ยอดสุทธิ', 'AOV', 'ซื้อหลายชิ้น', 'ยอด/ชม.', 'Review'], rows,
+    [false, false, false, false, true, true, true, true, true, true, false]);
+
+  renderProducts(prods);
+  renderMapping();
+}
+function renderProducts(prods) {
+  prods = prods || byProduct(stats(filteredSessions()).lines);
+  const q = $('#pSearch').value.trim().toLowerCase();
+  const list = q ? prods.filter(p => p.product.toLowerCase().includes(q)) : prods;
+  $('#productTable').innerHTML = table(['สินค้า', 'ชิ้น', 'สภาพดี', 'ตำหนิ/Show', 'ของแถม', 'ยอดสุทธิ', 'เฉลี่ย/ชิ้น', 'จำนวน Live', 'ไซส์ที่ขาย'],
+    list.map(p => `<tr><td class="wrap">${esc(p.product)}${p.mapped ? '' : ' <span class="tag warn">ยังไม่จับคู่</span>'}</td><td class="n">${fmt(p.units)}</td>
+      <td class="n">${fmt(p.normal)}</td><td class="n">${p.other ? fmt(p.other) : '—'}</td><td class="n">${p.free ? fmt(p.free) : '—'}</td><td class="n">${baht(p.net)}</td>
+      <td class="n">${baht(p.avg)}</td><td class="n">${p.nLives}</td><td class="muted">${Object.entries(p.sizes).map(([k, v]) => `${esc(k)}×${v}`).join(' ')}</td></tr>`),
+    [false, true, true, true, true, true, true, true, false]);
+}
+$('#pSearch').addEventListener('input', () => renderProducts());
+
+function table(heads, rows, numeric) {
+  if (!rows.length) return '<p class="muted">ไม่มีข้อมูลในช่วงที่เลือก</p>';
+  return `<table><thead><tr>${heads.map((h, i) => `<th class="${numeric[i] ? 'n' : ''}" data-i="${i}">${h}</th>`).join('')}</tr></thead><tbody>${rows.join('')}</tbody></table>`;
+}
+// click-to-sort any table
+document.addEventListener('click', e => {
+  const th = e.target.closest('th'); if (!th) return;
+  const tb = th.closest('table').tBodies[0], i = +th.dataset.i, dir = th.dataset.dir === 'desc' ? 'asc' : 'desc';
+  th.closest('tr').querySelectorAll('th').forEach(x => delete x.dataset.dir); th.dataset.dir = dir;
+  const val = td => { const t = td.textContent.replace(/[฿,%×]/g, '').trim(); const n = parseFloat(t); return isNaN(n) || !/^[\d.\-]/.test(t) ? t : n; };
+  [...tb.rows].sort((a, b) => { const x = val(a.cells[i]), y = val(b.cells[i]); const c = typeof x === 'number' && typeof y === 'number' ? x - y : String(x).localeCompare(String(y), 'th'); return dir === 'asc' ? c : -c; })
+    .forEach(r => tb.appendChild(r));
+});
+document.addEventListener('click', e => { const r = e.target.closest('tr[data-live]'); if (r) openLive(r.dataset.live); });
+document.addEventListener('keydown', e => { if (e.key === 'Enter') { const r = e.target.closest('tr[data-live]'); if (r) openLive(r.dataset.live); } if (e.key === 'Escape') closeDrawer(); });
+
+/* ---------- live detail ---------- */
+function openLive(id) {
+  const s = DATA.sessions.find(x => x.id === id); if (!s) return;
+  const st = stats([s]), p = st.per[id];
+  $('#dwTitle').textContent = `${s.platform || ''} Live ${dThai(s.date)}`;
+  $('#dwSub').innerHTML = `${esc(s.id)}${s.campaign ? ` <span class="tag camp">${esc(campName(s.campaign))}</span>` : ''} <span class="tag">${esc(s.status)}</span>`;
+  const na = v => v == null ? '<span class="muted">N/A</span>' : fmt(v);
+  const prods = byProduct(st.lines);
+  const ordersMap = {}; st.lines.forEach(l => { const o = ordersMap[l.order] = ordersMap[l.order] || { order: l.order, customer: l.customer, units: 0, net: 0, items: [] }; o.units += l.qty; o.net += l.net; o.items.push(`${l.product}${l.size ? ' ' + l.size : ''}${l.qty > 1 ? ' ×' + l.qty : ''}${!l.price ? ' (แถม)' : ''}`); });
+  const orders = Object.values(ordersMap).sort((a, b) => b.units - a.units || b.net - a.net);
+  const rv = s.review;
+  $('#dwBody').innerHTML = `
+    <div class="kpis"><div class="kpi hero"><b>${baht(p.net)}</b><span>ยอดสุทธิ${s.target ? ` · เป้า ${baht(s.target)}` : ''}</span></div>
+      <div class="kpi"><b>${fmt(p.nOrders)}</b><span>ออเดอร์</span></div><div class="kpi"><b>${fmt(p.units)}</b><span>ชิ้น</span></div>
+      <div class="kpi"><b>${baht(p.aov)}</b><span>AOV</span></div></div>
+    <div class="panel"><h3>ข้อมูล Live</h3><dl class="kv">
+      <dt>เวลา</dt><dd>${esc(s.start || 'N/A')} – ${esc(s.end || 'N/A')}${p.hours ? ` (${p.hours.toFixed(1)} ชม. · ${baht(p.perHour)}/ชม.)` : ''}</dd>
+      <dt>ผู้ชม / สูงสุด</dt><dd>${na(s.viewers)} / ${na(s.peak)}</dd><dt>คอมเมนต์ / แชร์</dt><dd>${na(s.comments)} / ${na(s.shares)}</dd>
+      <dt>ผู้ติดตามใหม่</dt><dd>${na(s.followers)}</dd><dt>ซื้อมากกว่า 1 ชิ้น</dt><dd>${fmt(p.multi)} ออเดอร์ (${pct(p.multiPct)})</dd>
+      ${s.notes ? `<dt>หมายเหตุ</dt><dd>${esc(s.notes)}</dd>` : ''}</dl>
+      <div class="row" style="margin-top:12px"><button class="btn ghost" onclick="editLive('${esc(s.id)}')">แก้ข้อมูล / ใส่ Review</button></div></div>
+    <div class="panel"><h3>สินค้าที่ขายได้</h3><div class="tbl-wrap">${table(['สินค้า', 'ชิ้น', 'ยอดสุทธิ', 'ไซส์'], prods.map(x => `<tr><td class="wrap">${esc(x.product)}</td><td class="n">${fmt(x.units)}</td><td class="n">${baht(x.net)}</td><td class="muted">${Object.entries(x.sizes).map(([k, v]) => `${esc(k)}×${v}`).join(' ')}</td></tr>`), [false, true, true, false])}</div></div>
+    <div class="panel"><h3>ออเดอร์ (${orders.length})</h3><div class="tbl-wrap">${table(['ออเดอร์', 'ลูกค้า', 'ชิ้น', 'ยอด', 'สินค้า'], orders.map(o => `<tr><td>${esc(o.order)}</td><td class="muted">${esc(o.customer)}</td><td class="n">${o.units}</td><td class="n">${baht(o.net)}</td><td class="wrap">${o.items.map(esc).join('<br>')}</td></tr>`), [false, false, true, true, false])}</div></div>
+    <div class="panel"><h3>Review</h3>${rv ? `<dl class="kv"><dt>ได้ผล</dt><dd>${esc(rv.worked) || '—'}</dd><dt>ไม่ได้ผล</dt><dd>${esc(rv.didnt) || '—'}</dd>
+      <dt>ลูกค้าถาม</dt><dd>${esc(rv.questions) || '—'}</dd><dt>ปัญหา</dt><dd>${esc(rv.problems) || '—'}</dd><dt>ครั้งหน้า</dt><dd>${esc(rv.next) || '—'}</dd>
+      <dt>โดย</dt><dd>${esc(rv.reviewer)} ${esc(rv.date || '')}</dd></dl>` : '<p class="muted">ยังไม่มี Review — กด "แก้ข้อมูล / ใส่ Review" ด้านบน</p>'}</div>`;
+  $('#drawer').hidden = false; $('#dwClose').focus();
+}
+function closeDrawer() { $('#drawer').hidden = true; }
+$('#dwClose').onclick = closeDrawer;
+$('#drawer').addEventListener('click', e => { if (e.target.id === 'drawer') closeDrawer(); });
+
+/* ---------- forms ---------- */
+function opts(el, list, keep) { el.innerHTML = (keep || '') + list.map(([v, t]) => `<option value="${esc(v)}">${esc(t)}</option>`).join(''); }
+function initForms() {
+  const cfg = DATA.config || {};
+  opts($('#lvPlat'), (cfg.Platform || ['Facebook']).map(p => [p, p]));
+  opts($('#lvStatus'), (cfg.Live_Status || ['PLANNED']).map(p => [p, p]));
+  opts($('#lvHost'), DATA.hosts.map(h => [h.id, h.name || h.id]), '<option value="">—</option>');
+  opts($('#lvCamp'), DATA.campaigns.map(c => [c.id, c.name]), '<option value="">ไม่มี</option>');
+  const ss = [...DATA.sessions].sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+  opts($('#lvPick'), ss.map(s => [s.id, `${s.id} · ${dThai(s.date)}`]), '<option value="">+ สร้าง Live ใหม่</option>');
+  opts($('#rvLive'), ss.map(s => [s.id, `${s.id} · ${dThai(s.date)}${s.review ? ' (มี Review แล้ว)' : ''}`]));
+  $('#rvQ').innerHTML = (cfg.Question_Tag || []).map(t => `<label><input type="checkbox" value="${esc(t)}">${esc(t)}</label>`).join('');
+  $('#rvP').innerHTML = (cfg.Problem_Tag || []).map(t => `<label><input type="checkbox" value="${esc(t)}">${esc(t)}</label>`).join('');
+  fillLive(''); fillReview(ss[0] && ss[0].id);
+}
+const F = ['Plat:platform', 'Date:date', 'Start:start', 'End:end', 'Host:host', 'Camp:campaign', 'Target:target', 'Viewers:viewers', 'Peak:peak', 'Comments:comments', 'Shares:shares', 'Followers:followers', 'Status:status', 'Notes:notes'].map(x => x.split(':'));
+function fillLive(id) {
+  const s = DATA.sessions.find(x => x.id === id) || { platform: 'Facebook', date: new Date().toISOString().slice(0, 10), status: 'PLANNED' };
+  F.forEach(([el, k]) => { const v = s[k]; $('#lv' + el).value = v == null || v === 'N/A' ? '' : v; });
+  $('#lvPlat').disabled = $('#lvDate').disabled = !!id;
+  $('#lvSave').textContent = id ? 'บันทึกการแก้ไข' : 'สร้าง Live';
+}
+function fillReview(id) {
+  const s = DATA.sessions.find(x => x.id === id); const rv = (s && s.review) || {};
+  $('#rvLive').value = id || ''; $('#rvWorked').value = rv.worked || ''; $('#rvDidnt').value = rv.didnt || ''; $('#rvNext').value = rv.next || ''; $('#rvBy').value = rv.reviewer || localStorage.getItem('reviewer') || '';
+  const set = (box, str) => { const v = String(str || '').split(',').map(x => x.trim()); box.querySelectorAll('input').forEach(i => i.checked = v.includes(i.value)); };
+  set($('#rvQ'), rv.questions); set($('#rvP'), rv.problems);
+}
+$('#lvPick').onchange = e => fillLive(e.target.value);
+$('#rvLive').onchange = e => fillReview(e.target.value);
+function editLive(id) { closeDrawer(); showTab('record'); $('#lvPick').value = id; fillLive(id); fillReview(id); window.scrollTo(0, 0); }
+
+function note(el, ok, text) { el.innerHTML = `<div class="msg ${ok ? 'ok' : 'err'}">${esc(text)}</div>`; }
+$('#lvSave').onclick = async () => {
+  const b = $('#lvSave'); b.disabled = true;
+  const live = { id: $('#lvPick').value || null }; F.forEach(([el, k]) => live[k] = $('#lv' + el).value);
+  try { const r = await api('POST', { action: 'saveLive', live, user: $('#rvBy').value });
+    note($('#lvMsg'), true, (r.created ? 'สร้าง Live แล้ว: ' : 'บันทึกแล้ว: ') + r.liveId); await reload(); $('#lvPick').value = r.liveId; fillLive(r.liveId);
+  } catch (e) { note($('#lvMsg'), false, e.message); } finally { b.disabled = false; }
+};
+$('#rvSave').onclick = async () => {
+  const b = $('#rvSave'); b.disabled = true;
+  const pick = box => [...box.querySelectorAll('input:checked')].map(i => i.value);
+  const review = { liveId: $('#rvLive').value, worked: $('#rvWorked').value, didnt: $('#rvDidnt').value, next: $('#rvNext').value, reviewer: $('#rvBy').value, questions: pick($('#rvQ')), problems: pick($('#rvP')) };
+  localStorage.setItem('reviewer', review.reviewer);
+  try { await api('POST', { action: 'saveReview', review }); note($('#rvMsg'), true, 'บันทึก Review ของ ' + review.liveId + ' แล้ว'); await reload(); fillReview(review.liveId); }
+  catch (e) { note($('#rvMsg'), false, e.message); } finally { b.disabled = false; }
+};
+
+/* ---------- import ---------- */
+let pending = null;
+const drop = $('#drop');
+['dragover', 'dragenter'].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.add('over'); }));
+['dragleave', 'drop'].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.remove('over'); }));
+drop.addEventListener('drop', e => e.dataTransfer.files[0] && readFile(e.dataTransfer.files[0]));
+$('#file').addEventListener('change', e => e.target.files[0] && readFile(e.target.files[0]));
+async function readFile(file) {
+  try {
+    const wb = XLSX.read(await file.arrayBuffer(), { type: 'array' });
+    const rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { raw: false, defval: '' });
+    const need = ['เลขที่ออเดอร์', 'รหัสสินค้า', 'วันที่สร้าง', 'วันที่โอนเงิน'];
+    const miss = need.filter(k => !(rows[0] && k in rows[0]));
+    if (miss.length) throw new Error('ไฟล์ไม่มีคอลัมน์: ' + miss.join(', '));
+    // ส่งเฉพาะคอลัมน์ที่ระบบใช้ — ไม่ส่งชื่อ/ที่อยู่ลูกค้า
+    const keep = ['รหัสสินค้า', 'สินค้า', 'ราคา', 'จำนวน', 'เลขที่ออเดอร์', 'ยอดขายออเดอร์', 'ค่าส่งที่เก็บลูกค้า', 'เบอร์โทร', 'วันที่โอนเงิน', 'ช่องทางติดต่อ', 'วันที่สร้าง'];
+    pending = { fileName: file.name, rows: rows.map(r => Object.fromEntries(keep.map(k => [k, String(r[k] ?? '').trim()]))) };
+    const orders = new Set(pending.rows.map(r => r['เลขที่ออเดอร์'])), unpaid = new Set(pending.rows.filter(r => !r['วันที่โอนเงิน'] || r['วันที่โอนเงิน'] === '-').map(r => r['เลขที่ออเดอร์']));
+    const dates = pending.rows.map(r => r['วันที่สร้าง'].slice(0, 10)).filter(Boolean).sort((a, b) => a.split('/').reverse().join('').localeCompare(b.split('/').reverse().join('')));
+    $('#preview').innerHTML = `<div class="panel" style="margin:16px 0 0;background:#FAFBFD"><dl class="kv">
+      <dt>ไฟล์</dt><dd>${esc(file.name)}</dd><dt>บรรทัดสินค้า</dt><dd>${fmt(pending.rows.length)}</dd><dt>ออเดอร์</dt><dd>${fmt(orders.size)} (ยังไม่โอน ${unpaid.size} — จะข้าม)</dd>
+      <dt>ช่วงวันที่</dt><dd>${esc(dates[0] || '—')} ถึง ${esc(dates[dates.length - 1] || '—')}</dd></dl>
+      <div class="row" style="margin-top:12px"><button class="btn" id="doImport">นำเข้า ${fmt(pending.rows.length)} บรรทัด</button><button class="btn ghost" id="cancelImport">ยกเลิก</button></div><div id="impMsg"></div></div>`;
+    $('#cancelImport').onclick = () => { pending = null; $('#preview').innerHTML = ''; $('#file').value = ''; };
+    $('#doImport').onclick = doImport;
+  } catch (e) { $('#preview').innerHTML = `<div class="msg err">${esc(e.message)}</div>`; }
+}
+async function doImport() {
+  const b = $('#doImport'); b.disabled = true; b.textContent = 'กำลังนำเข้า…';
+  try {
+    const r = await api('POST', Object.assign({ action: 'importSales' }, pending));
+    const s = r.stats;
+    note($('#impMsg'), true, `นำเข้าแล้ว: เพิ่ม ${s.added} บรรทัด · อัปเดต ${s.updated} · ข้าม ${s.skipped}` +
+      (s.newLives.length ? ` · Live ใหม่ ${s.newLives.join(', ')}` : '') + (s.unmappedNew.length ? ` · SKU ใหม่ที่ยังไม่จับคู่ ${s.unmappedNew.length} ตัว (ดูด้านล่าง)` : '') +
+      (s.issues ? ` · มีจุดที่ต้องตรวจ ${s.issues} รายการใน tab 91_Data_Issues` : ''));
+    pending = null; $('#file').value = ''; await reload();
+  } catch (e) { note($('#impMsg'), false, e.message); b.disabled = false; b.textContent = 'ลองอีกครั้ง'; }
+}
+
+/* ---------- SKU mapping ---------- */
+function renderMapping() {
+  const cond = (DATA.config.Condition || ['Normal', 'Defect', 'Show', 'Demo']);
+  const u = DATA.unmapped || [];
+  $('#unmapped').innerHTML = u.length ? table(['รหัสต้นทาง', 'ชื่อในบิล', 'ชิ้น', 'รหัส Shopify (Base_SKU)', 'สภาพ', ''], u.map((x, i) =>
+    `<tr><td>${esc(x.src)}</td><td class="wrap">${esc(x.name)}</td><td class="n">${x.units}</td>
+     <td><input data-src="${esc(x.src)}" class="mapIn" style="border:1px solid var(--line);border-radius:6px;padding:6px;width:220px" placeholder="เช่น CB26-EDMK-TSWH0XL022"></td>
+     <td><select class="mapCond" data-src="${esc(x.src)}">${cond.map(c => `<option ${/ตำหนิ/.test(x.name) && c === 'Defect' || /show|โชว์/i.test(x.name) && c === 'Show' ? 'selected' : ''}>${esc(c)}</option>`).join('')}</select></td>
+     <td><button class="btn ghost mapSave" data-src="${esc(x.src)}">บันทึก</button></td></tr>`), [false, false, true, false, false, false])
+    : '<p class="muted">จับคู่ครบทุก SKU แล้ว</p>';
+  const lc = DATA.lowConfidence || [];
+  $('#lowPanel').hidden = !lc.length;
+  $('#lowConf').innerHTML = table(['รหัสต้นทาง', 'ชื่อในบิล', 'จับคู่กับ', 'เหตุผล', ''], lc.map(x =>
+    `<tr><td>${esc(x.src)}</td><td class="wrap">${esc(x.name)}</td><td>${esc(x.base)}</td><td class="wrap muted">${esc(x.note)}</td>
+     <td><button class="btn ghost okLow" data-src="${esc(x.src)}">ถูกต้อง</button></td></tr>`), [false, false, false, false, false]);
+}
+document.addEventListener('click', async e => {
+  const save = e.target.closest('.mapSave'), ok = e.target.closest('.okLow');
+  if (!save && !ok) return;
+  const src = (save || ok).dataset.src;
+  const item = save ? { src, base: document.querySelector(`.mapIn[data-src="${CSS.escape(src)}"]`).value.trim(), condition: document.querySelector(`.mapCond[data-src="${CSS.escape(src)}"]`).value } : { src };
+  if (save && !item.base) return note($('#mapMsg'), false, 'ใส่รหัส Shopify ก่อนบันทึก');
+  (save || ok).disabled = true;
+  try { await api('POST', { action: 'saveSkuMap', items: [item] }); note($('#mapMsg'), true, 'บันทึก ' + src + ' แล้ว'); await reload(); }
+  catch (err) { note($('#mapMsg'), false, err.message); (save || ok).disabled = false; }
+});
+
+/* ---------- tabs ---------- */
+function showTab(t) {
+  if (!document.getElementById('tab-' + t)) t = 'overview';
+  document.querySelectorAll('main section').forEach(s => s.hidden = s.id !== 'tab-' + t);
+  document.querySelectorAll('.nav button').forEach(b => b.setAttribute('aria-selected', b.dataset.tab === t));
+  history.replaceState(null, '', '#' + t);
+  if (t === 'overview' && chart) chart.resize();
+}
+document.querySelectorAll('.nav button').forEach(b => b.onclick = () => showTab(b.dataset.tab));
+async function reload() { await load(true); }
+load(false);
+</script>
+</body>
+</html>
