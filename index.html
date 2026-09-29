@@ -129,6 +129,7 @@ dl.kv dd{margin:0}
     <button role="tab" data-tab="overview" aria-selected="true">ภาพรวม</button>
     <button role="tab" data-tab="lives" aria-selected="false">รายการ Live</button>
     <button role="tab" data-tab="products" aria-selected="false">สินค้า</button>
+    <button role="tab" data-tab="customers" aria-selected="false">ลูกค้า</button>
     <button role="tab" data-tab="record" aria-selected="false">บันทึก Live</button>
     <button role="tab" data-tab="import" aria-selected="false">นำเข้ายอดขาย</button>
   </nav>
@@ -170,6 +171,18 @@ dl.kv dd{margin:0}
     <p class="sub">รวมยอดตามสินค้าหลักใน Shopify — สินค้าตำหนิ / Show / Demo นับรวมกับสินค้าดีตัวเดียวกัน</p>
     <div class="row" style="margin-bottom:12px"><div class="field" style="flex:1;max-width:360px"><input id="pSearch" type="search" placeholder="ค้นหาชื่อสินค้า" aria-label="ค้นหาชื่อสินค้า"></div></div>
     <div class="panel"><div class="tbl-wrap" id="productTable"></div></div>
+  </section>
+
+  <!-- CUSTOMERS -->
+  <section id="tab-customers" hidden>
+    <h2>ลูกค้า</h2>
+    <p class="sub">นับเป็นคนเดียวกันเมื่อใช้เบอร์เดียวกันและชื่อใกล้เคียงกัน หรือชื่อ-นามสกุลตรงกันแม้เปลี่ยนเบอร์</p>
+    <div class="kpis" id="custKpis"></div>
+    <div class="row" style="margin-bottom:12px">
+      <div class="field" style="flex:1;max-width:320px"><input id="cSearch" type="search" placeholder="ค้นหาชื่อ หรือรหัสลูกค้า" aria-label="ค้นหาลูกค้า"></div>
+      <label class="row" style="gap:6px;cursor:pointer"><input type="checkbox" id="cRepeat" checked> เฉพาะลูกค้าที่ซื้อมากกว่า 1 Live</label>
+    </div>
+    <div class="panel"><div class="tbl-wrap" id="custTable"></div></div>
   </section>
 
   <!-- RECORD -->
@@ -227,8 +240,8 @@ dl.kv dd{margin:0}
       <div id="preview"></div>
     </div>
     <div class="panel">
-      <h3>SKU ที่ยังไม่จับคู่</h3>
-      <p class="muted" style="margin-top:-6px">ใส่รหัส Shopify ของสินค้าดี แล้วเลือกสภาพสินค้า ยอดจะย้ายไปรวมกับสินค้านั้นทันที</p>
+      <div class="row" style="justify-content:space-between"><h3 style="margin:0">SKU ที่ยังไม่จับคู่</h3><button class="btn ghost" id="rematch">จับคู่อัตโนมัติอีกครั้ง</button></div>
+      <p class="muted">ใส่รหัส Shopify ของสินค้าดี — ถ้าเป็นสินค้าที่ไม่มีใน Shopify (เสื้อเปล่า ตัวอย่าง สินค้าพาร์ทเนอร์) ให้ตั้งชื่อกลุ่มแทน ยอดจะรวมตามชื่อกลุ่ม</p>
       <div class="tbl-wrap" id="unmapped"></div>
       <div id="mapMsg"></div>
     </div>
@@ -346,7 +359,7 @@ const toMin = t => { const [h, m] = t.split(':').map(Number); return h * 60 + m;
 function byProduct(lines) {
   const g = {};
   lines.forEach(l => {
-    const k = l.product; const x = g[k] = g[k] || { product: k, mapped: !!l.baseSku, units: 0, normal: 0, other: 0, free: 0, net: 0, lives: new Set(), sizes: {} };
+    const k = l.product; const x = g[k] = g[k] || { product: k, mapped: !!l.baseSku, custom: l.baseSku === 'CUSTOM', units: 0, normal: 0, other: 0, free: 0, net: 0, lives: new Set(), sizes: {} };
     x.units += l.qty; x.net += l.net; x.lives.add(l.live);
     if (l.condition === 'Normal') x.normal += l.qty; else x.other += l.qty;
     if (!l.price) x.free += l.qty;
@@ -413,6 +426,7 @@ function render() {
     [false, false, false, false, true, true, true, true, true, true, false]);
 
   renderProducts(prods);
+  renderCustomers(st);
   renderMapping();
 }
 function renderProducts(prods) {
@@ -420,12 +434,49 @@ function renderProducts(prods) {
   const q = $('#pSearch').value.trim().toLowerCase();
   const list = q ? prods.filter(p => p.product.toLowerCase().includes(q)) : prods;
   $('#productTable').innerHTML = table(['สินค้า', 'ชิ้น', 'สภาพดี', 'ตำหนิ/Show', 'ของแถม', 'ยอดสุทธิ', 'เฉลี่ย/ชิ้น', 'จำนวน Live', 'ไซส์ที่ขาย'],
-    list.map(p => `<tr><td class="wrap">${esc(p.product)}${p.mapped ? '' : ' <span class="tag warn">ยังไม่จับคู่</span>'}</td><td class="n">${fmt(p.units)}</td>
+    list.map(p => `<tr><td class="wrap">${esc(p.product)}${p.custom ? ' <span class="tag">นอก Shopify</span>' : p.mapped ? '' : ' <span class="tag warn">ยังไม่จับคู่</span>'}</td><td class="n">${fmt(p.units)}</td>
       <td class="n">${fmt(p.normal)}</td><td class="n">${p.other ? fmt(p.other) : '—'}</td><td class="n">${p.free ? fmt(p.free) : '—'}</td><td class="n">${baht(p.net)}</td>
       <td class="n">${baht(p.avg)}</td><td class="n">${p.nLives}</td><td class="muted">${Object.entries(p.sizes).map(([k, v]) => `${esc(k)}×${v}`).join(' ')}</td></tr>`),
     [false, true, true, true, true, true, true, true, false]);
 }
 $('#pSearch').addEventListener('input', () => renderProducts());
+
+/* ---------- customers ---------- */
+const custLabel = id => (DATA.customers && DATA.customers[id]) ? DATA.customers[id] : id;
+function renderCustomers(st) {
+  st = st || stats(filteredSessions());
+  const liveDate = {}; DATA.sessions.forEach(s => liveDate[s.id] = s.date || '');
+  const firstEver = {}; LINES.forEach(l => { const d = liveDate[l.live]; if (l.customer && (!firstEver[l.customer] || d < firstEver[l.customer])) firstEver[l.customer] = d; });
+  const inPeriod = new Set(filteredSessions().map(s => s.date));
+  const c = {};
+  st.lines.forEach(l => {
+    if (!l.customer) return;
+    const x = c[l.customer] = c[l.customer] || { id: l.customer, lives: new Set(), orders: new Set(), units: 0, net: 0, first: '9999', last: '', prods: {} };
+    const d = liveDate[l.live]; x.lives.add(l.live); x.orders.add(l.order); x.units += l.qty; x.net += l.net;
+    if (d < x.first) x.first = d; if (d > x.last) x.last = d;
+    if (l.price) x.prods[l.product] = (x.prods[l.product] || 0) + l.qty;
+  });
+  const list = Object.values(c).map(x => Object.assign(x, { nLives: x.lives.size, nOrders: x.orders.size,
+    fav: Object.entries(x.prods).sort((a, b) => b[1] - a[1]).slice(0, 2).map(p => p[0]).join(', '),
+    isNew: !!$('#fMonth').value && inPeriod.has(firstEver[x.id]) }));
+  const rep = list.filter(x => x.nLives > 1), repNet = rep.reduce((a, x) => a + x.net, 0), all = list.reduce((a, x) => a + x.net, 0);
+  $('#custKpis').innerHTML = [
+    ['', fmt(list.length), 'ลูกค้าที่ซื้อในช่วงนี้'],
+    ['hero', `${fmt(rep.length)} คน`, `ซื้อมากกว่า 1 Live (${pct(list.length ? rep.length / list.length : null)})`],
+    ['', pct(all ? repNet / all : null), 'สัดส่วนยอดจากลูกค้าที่ซื้อซ้ำ'],
+    ['', $('#fMonth').value ? fmt(list.filter(x => x.isNew).length) : '—', $('#fMonth').value ? 'ลูกค้าใหม่ (ซื้อครั้งแรกเดือนนี้)' : 'ลูกค้าใหม่ — เลือกเดือนเพื่อดู'],
+  ].map(([cl, v, l]) => `<div class="kpi ${cl}"><b>${v}</b><span>${l}</span></div>`).join('');
+  const q = $('#cSearch').value.trim().toLowerCase(), onlyRep = $('#cRepeat').checked;
+  const show = list.filter(x => (!onlyRep || x.nLives > 1) && (!q || (custLabel(x.id) + ' ' + x.id).toLowerCase().includes(q)))
+    .sort((a, b) => b.nLives - a.nLives || b.net - a.net);
+  $('#custTable').innerHTML = table(['ลูกค้า', 'จำนวน Live', 'ออเดอร์', 'ชิ้น', 'ยอดสุทธิ', 'ซื้อครั้งแรก', 'ล่าสุด', 'สินค้าที่ซื้อบ่อย'],
+    show.slice(0, 300).map(x => `<tr><td>${esc(custLabel(x.id))}${custLabel(x.id) !== x.id ? ` <span class="muted">${esc(x.id)}</span>` : ''}${x.isNew ? ' <span class="tag">ใหม่</span>' : ''}</td>
+      <td class="n">${x.nLives}</td><td class="n">${x.nOrders}</td><td class="n">${fmt(x.units)}</td><td class="n">${baht(x.net)}</td>
+      <td>${dThai(firstEver[x.id])}</td><td>${dThai(x.last)}</td><td class="wrap muted">${esc(x.fav)}</td></tr>`),
+    [false, true, true, true, true, false, false, false]) + (show.length > 300 ? `<p class="muted">แสดง 300 จาก ${show.length} คน — ใช้ช่องค้นหาเพื่อหาคนที่ต้องการ</p>` : '');
+}
+$('#cSearch').addEventListener('input', () => renderCustomers());
+$('#cRepeat').addEventListener('change', () => renderCustomers());
 
 function table(heads, rows, numeric) {
   if (!rows.length) return '<p class="muted">ไม่มีข้อมูลในช่วงที่เลือก</p>';
@@ -451,7 +502,7 @@ function openLive(id) {
   $('#dwSub').innerHTML = `${esc(s.id)}${s.campaign ? ` <span class="tag camp">${esc(campName(s.campaign))}</span>` : ''} <span class="tag">${esc(s.status)}</span>`;
   const na = v => v == null ? '<span class="muted">N/A</span>' : fmt(v);
   const prods = byProduct(st.lines);
-  const ordersMap = {}; st.lines.forEach(l => { const o = ordersMap[l.order] = ordersMap[l.order] || { order: l.order, customer: l.customer, units: 0, net: 0, items: [] }; o.units += l.qty; o.net += l.net; o.items.push(`${l.product}${l.size ? ' ' + l.size : ''}${l.qty > 1 ? ' ×' + l.qty : ''}${!l.price ? ' (แถม)' : ''}`); });
+  const ordersMap = {}; st.lines.forEach(l => { const o = ordersMap[l.order] = ordersMap[l.order] || { order: l.order, customer: custLabel(l.customer), units: 0, net: 0, items: [] }; o.units += l.qty; o.net += l.net; o.items.push(`${l.product}${l.size ? ' ' + l.size : ''}${l.qty > 1 ? ' ×' + l.qty : ''}${!l.price ? ' (แถม)' : ''}`); });
   const orders = Object.values(ordersMap).sort((a, b) => b.units - a.units || b.net - a.net);
   const rv = s.review;
   $('#dwBody').innerHTML = `
@@ -538,8 +589,8 @@ async function readFile(file) {
     const need = ['เลขที่ออเดอร์', 'รหัสสินค้า', 'วันที่สร้าง', 'วันที่โอนเงิน'];
     const miss = need.filter(k => !(rows[0] && k in rows[0]));
     if (miss.length) throw new Error('ไฟล์ไม่มีคอลัมน์: ' + miss.join(', '));
-    // ส่งเฉพาะคอลัมน์ที่ระบบใช้ — ไม่ส่งชื่อ/ที่อยู่ลูกค้า
-    const keep = ['รหัสสินค้า', 'สินค้า', 'ราคา', 'จำนวน', 'เลขที่ออเดอร์', 'ยอดขายออเดอร์', 'ค่าส่งที่เก็บลูกค้า', 'เบอร์โทร', 'วันที่โอนเงิน', 'ช่องทางติดต่อ', 'วันที่สร้าง'];
+    // ส่งเฉพาะคอลัมน์ที่ระบบใช้ — ไม่ส่งที่อยู่ลูกค้า (ชื่อใช้หาลูกค้าคนเดิม เก็บใน Sheet แบบย่อ)
+    const keep = ['รหัสสินค้า', 'สินค้า', 'ราคา', 'จำนวน', 'เลขที่ออเดอร์', 'ยอดขายออเดอร์', 'ค่าส่งที่เก็บลูกค้า', 'ชื่อ', 'เบอร์โทร', 'วันที่โอนเงิน', 'ช่องทางติดต่อ', 'วันที่สร้าง'];
     pending = { fileName: file.name, rows: rows.map(r => Object.fromEntries(keep.map(k => [k, String(r[k] ?? '').trim()]))) };
     const orders = new Set(pending.rows.map(r => r['เลขที่ออเดอร์'])), unpaid = new Set(pending.rows.filter(r => !r['วันที่โอนเงิน'] || r['วันที่โอนเงิน'] === '-').map(r => r['เลขที่ออเดอร์']));
     const dates = pending.rows.map(r => r['วันที่สร้าง'].slice(0, 10)).filter(Boolean).sort((a, b) => a.split('/').reverse().join('').localeCompare(b.split('/').reverse().join('')));
@@ -557,7 +608,7 @@ async function doImport() {
     const r = await api('POST', Object.assign({ action: 'importSales' }, pending));
     const s = r.stats;
     note($('#impMsg'), true, `นำเข้าแล้ว: เพิ่ม ${s.added} บรรทัด · อัปเดต ${s.updated} · ข้าม ${s.skipped}` +
-      (s.newLives.length ? ` · Live ใหม่ ${s.newLives.join(', ')}` : '') + (s.unmappedNew.length ? ` · SKU ใหม่ที่ยังไม่จับคู่ ${s.unmappedNew.length} ตัว (ดูด้านล่าง)` : '') +
+      (s.newLives.length ? ` · Live ใหม่ ${s.newLives.join(', ')}` : '') + (s.newCustomers ? ` · ลูกค้าใหม่ ${s.newCustomers} คน` : '') + (s.unmappedNew.length ? ` · SKU ใหม่ที่ยังไม่จับคู่ ${s.unmappedNew.length} ตัว (ดูด้านล่าง)` : '') +
       (s.issues ? ` · มีจุดที่ต้องตรวจ ${s.issues} รายการใน tab 91_Data_Issues` : ''));
     pending = null; $('#file').value = ''; await reload();
   } catch (e) { note($('#impMsg'), false, e.message); b.disabled = false; b.textContent = 'ลองอีกครั้ง'; }
@@ -567,27 +618,34 @@ async function doImport() {
 function renderMapping() {
   const cond = (DATA.config.Condition || ['Normal', 'Defect', 'Show', 'Demo']);
   const u = DATA.unmapped || [];
-  $('#unmapped').innerHTML = u.length ? table(['รหัสต้นทาง', 'ชื่อในบิล', 'ชิ้น', 'รหัส Shopify (Base_SKU)', 'สภาพ', ''], u.map((x, i) =>
+  $('#unmapped').innerHTML = u.length ? table(['รหัสต้นทาง', 'ชื่อในบิล', 'ชิ้น', 'รหัส Shopify', 'หรือ ชื่อกลุ่ม', 'สภาพ', ''], u.map((x, i) =>
     `<tr><td>${esc(x.src)}</td><td class="wrap">${esc(x.name)}</td><td class="n">${x.units}</td>
-     <td><input data-src="${esc(x.src)}" class="mapIn" style="border:1px solid var(--line);border-radius:6px;padding:6px;width:220px" placeholder="เช่น CB26-EDMK-TSWH0XL022"></td>
+     <td><input data-src="${esc(x.src)}" class="mapIn" style="border:1px solid var(--line);border-radius:6px;padding:6px;width:200px" placeholder="CB26-EDMK-TSWH0XL022"></td>
+     <td><input data-src="${esc(x.src)}" class="mapCustom" list="customList" style="border:1px solid var(--line);border-radius:6px;padding:6px;width:160px" placeholder="เช่น เสื้อเปล่า"></td>
      <td><select class="mapCond" data-src="${esc(x.src)}">${cond.map(c => `<option ${/ตำหนิ/.test(x.name) && c === 'Defect' || /show|โชว์/i.test(x.name) && c === 'Show' ? 'selected' : ''}>${esc(c)}</option>`).join('')}</select></td>
-     <td><button class="btn ghost mapSave" data-src="${esc(x.src)}">บันทึก</button></td></tr>`), [false, false, true, false, false, false])
+     <td><button class="btn ghost mapSave" data-src="${esc(x.src)}">บันทึก</button></td></tr>`), [false, false, true, false, false, false, false])
+    + `<datalist id="customList">${[...new Set(LINES.filter(l => l.baseSku === 'CUSTOM').map(l => l.product))].map(n => `<option value="${esc(n)}">`).join('')}</datalist>`
     : '<p class="muted">จับคู่ครบทุก SKU แล้ว</p>';
   const lc = DATA.lowConfidence || [];
   $('#lowPanel').hidden = !lc.length;
   $('#lowConf').innerHTML = table(['รหัสต้นทาง', 'ชื่อในบิล', 'จับคู่กับ', 'เหตุผล', ''], lc.map(x =>
-    `<tr><td>${esc(x.src)}</td><td class="wrap">${esc(x.name)}</td><td>${esc(x.base)}</td><td class="wrap muted">${esc(x.note)}</td>
-     <td><button class="btn ghost okLow" data-src="${esc(x.src)}">ถูกต้อง</button></td></tr>`), [false, false, false, false, false]);
+    `<tr><td>${esc(x.src)}</td><td class="wrap">${esc(x.name)}</td><td class="wrap">${esc(x.baseName || x.base)}<br><span class="muted">${esc(x.base)}</span></td><td class="wrap muted">${esc(x.note)}</td>
+     <td style="white-space:nowrap"><button class="btn ghost okLow" data-src="${esc(x.src)}">ถูกต้อง</button> <button class="btn ghost noLow" data-src="${esc(x.src)}">ไม่ใช่</button></td></tr>`), [false, false, false, false, false]);
 }
 document.addEventListener('click', async e => {
-  const save = e.target.closest('.mapSave'), ok = e.target.closest('.okLow');
-  if (!save && !ok) return;
-  const src = (save || ok).dataset.src;
-  const item = save ? { src, base: document.querySelector(`.mapIn[data-src="${CSS.escape(src)}"]`).value.trim(), condition: document.querySelector(`.mapCond[data-src="${CSS.escape(src)}"]`).value } : { src };
-  if (save && !item.base) return note($('#mapMsg'), false, 'ใส่รหัส Shopify ก่อนบันทึก');
-  (save || ok).disabled = true;
-  try { await api('POST', { action: 'saveSkuMap', items: [item] }); note($('#mapMsg'), true, 'บันทึก ' + src + ' แล้ว'); await reload(); }
-  catch (err) { note($('#mapMsg'), false, err.message); (save || ok).disabled = false; }
+  const save = e.target.closest('.mapSave'), ok = e.target.closest('.okLow'), no = e.target.closest('.noLow');
+  const btn = save || ok || no; if (!btn) return;
+  const src = btn.dataset.src, q = c => document.querySelector(`.${c}[data-src="${CSS.escape(src)}"]`);
+  let item = { src };
+  if (save) {
+    const base = q('mapIn').value.trim(), custom = q('mapCustom').value.trim();
+    if (!base && !custom) return note($('#mapMsg'), false, 'ใส่รหัส Shopify หรือชื่อกลุ่มก่อนบันทึก');
+    item = base ? { src, base, condition: q('mapCond').value } : { src, custom, condition: q('mapCond').value };
+  }
+  if (no) item = { src, base: '' };
+  btn.disabled = true;
+  try { await api('POST', { action: 'saveSkuMap', items: [item] }); note($('#mapMsg'), true, 'บันทึก ' + src + ' แล้ว'); await reload(); showTab('import'); }
+  catch (err) { note($('#mapMsg'), false, err.message); btn.disabled = false; }
 });
 
 /* ---------- tabs ---------- */
@@ -600,6 +658,12 @@ function showTab(t) {
 }
 document.querySelectorAll('.nav button').forEach(b => b.onclick = () => showTab(b.dataset.tab));
 async function reload() { await load(true); }
+$('#rematch').onclick = async () => {
+  const b = $('#rematch'); b.disabled = true; b.textContent = 'กำลังจับคู่…';
+  try { const r = await api('POST', { action: 'rematchSkus' });
+    note($('#mapMsg'), true, `จับคู่เพิ่มได้ ${r.matched} SKU (มั่นใจ ${(r.byConfidence.High || 0) + (r.byConfidence.Medium || 0)} · ต้องตรวจ ${r.byConfidence.Low || 0} — ดูตารางด้านล่าง)`); await reload(); showTab('import'); }
+  catch (e) { note($('#mapMsg'), false, e.message); } finally { b.disabled = false; b.textContent = 'จับคู่อัตโนมัติอีกครั้ง'; }
+};
 load(false);
 </script>
 </body>
