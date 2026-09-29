@@ -74,6 +74,15 @@ tr.click{cursor:pointer}
 .tag.camp{background:#ECE9FA;color:var(--camp)}
 .tag.warn{background:#FBF1DE;color:var(--warn)}
 .tag.red{background:#FBE5E8;color:var(--onair)}
+.pcell{display:flex;align-items:center;gap:10px;min-width:220px;white-space:normal}
+.thumb{width:44px;height:44px;flex:0 0 44px;border-radius:8px;object-fit:cover;background:var(--soft);border:1px solid var(--line)}
+.thumb.ph{display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;color:var(--muted)}
+.thumb.lg{width:120px;height:120px;flex-basis:120px;border-radius:12px;font-size:20px}
+.linkish{background:none;border:0;padding:0;color:inherit;font:inherit;text-align:left;cursor:pointer;text-decoration:underline;text-decoration-color:var(--line);text-underline-offset:3px}
+.linkish:hover{text-decoration-color:var(--ink)}
+.hist{border-top:1px solid var(--soft);padding:10px 0}
+.hist:first-child{border-top:0}
+.size-wrap{position:relative;height:240px}
 .bar{height:6px;background:var(--soft);border-radius:3px;min-width:80px}
 .bar>i{display:block;height:100%;background:var(--net);border-radius:3px}
 
@@ -168,7 +177,7 @@ dl.kv dd{margin:0}
   <!-- PRODUCTS -->
   <section id="tab-products" hidden>
     <h2>สินค้า</h2>
-    <p class="sub">รวมยอดตามสินค้าหลักใน Shopify — สินค้าตำหนิ / Show / Demo นับรวมกับสินค้าดีตัวเดียวกัน</p>
+    <p class="sub">รวมยอดตามสินค้าหลักใน Shopify — สินค้าตำหนิ / Show / Demo นับรวมกับสินค้าดีตัวเดียวกัน • กดที่สินค้าเพื่อดูยอดแยกไซส์</p>
     <div class="row" style="margin-bottom:12px"><div class="field" style="flex:1;max-width:360px"><input id="pSearch" type="search" placeholder="ค้นหาชื่อสินค้า" aria-label="ค้นหาชื่อสินค้า"></div></div>
     <div class="panel"><div class="tbl-wrap" id="productTable"></div></div>
   </section>
@@ -176,7 +185,7 @@ dl.kv dd{margin:0}
   <!-- CUSTOMERS -->
   <section id="tab-customers" hidden>
     <h2>ลูกค้า</h2>
-    <p class="sub">นับเป็นคนเดียวกันเมื่อใช้เบอร์เดียวกันและชื่อใกล้เคียงกัน หรือชื่อ-นามสกุลตรงกันแม้เปลี่ยนเบอร์</p>
+    <p class="sub">นับเป็นคนเดียวกันเมื่อใช้เบอร์เดียวกันและชื่อใกล้เคียงกัน หรือชื่อ-นามสกุลตรงกันแม้เปลี่ยนเบอร์ • กดที่ชื่อเพื่อดูสินค้าที่ซื้อ</p>
     <div class="kpis" id="custKpis"></div>
     <div class="row" style="margin-bottom:12px">
       <div class="field" style="flex:1;max-width:320px"><input id="cSearch" type="search" placeholder="ค้นหาชื่อ หรือรหัสลูกค้า" aria-label="ค้นหาลูกค้า"></div>
@@ -245,6 +254,12 @@ dl.kv dd{margin:0}
       <div class="tbl-wrap" id="unmapped"></div>
       <div id="mapMsg"></div>
     </div>
+    <div class="panel">
+      <h3>รูปสินค้าจาก Shopify</h3>
+      <p class="muted" style="margin-top:-6px">ใน Shopify ไปที่ Products → Export → All products → CSV แล้วเลือกไฟล์ที่ได้ตรงนี้ ระบบจะจับคู่รูปกับ SKU ให้เอง ทำซ้ำเมื่อมีสินค้าใหม่</p>
+      <div class="row"><label class="btn ghost" for="imgFile" style="cursor:pointer">เลือกไฟล์ Products CSV</label><input type="file" id="imgFile" accept=".csv,.xlsx" hidden><span class="muted" id="imgInfo"></span></div>
+      <div id="imgMsg"></div>
+    </div>
     <div class="panel" id="lowPanel">
       <h3>SKU ที่จับคู่แบบไม่มั่นใจ</h3>
       <div class="tbl-wrap" id="lowConf"></div>
@@ -270,6 +285,15 @@ const fmt = n => n == null || isNaN(n) ? '—' : Math.round(n).toLocaleString('t
 const baht = n => n == null || isNaN(n) ? '—' : '฿' + fmt(n);
 const pct = n => n == null || isNaN(n) ? '—' : (n * 100).toFixed(0) + '%';
 const median = a => { if (!a.length) return null; const s = [...a].sort((x, y) => x - y), m = s.length >> 1; return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2; };
+const SIZE_ORDER = ['XS','S','M','L','XL','2XL','3XL','4XL','5XL','6XL'];
+const sizeRank = z => { const i = SIZE_ORDER.indexOf(String(z).toUpperCase()); if (i >= 0) return i; const n = parseFloat(z); return isNaN(n) ? 100 : 20 + n; };
+const imgOf = sku => (DATA && DATA.images && sku && DATA.images[sku]) || '';
+function thumb(url, name, lg) {
+  const cls = 'thumb' + (lg ? ' lg' : '');
+  const ini = esc(String(name || '?').replace(/^[\[(]+/, '').slice(0, 2));
+  return url ? `<img class="${cls}" src="${esc(url)}" alt="" loading="lazy" onerror="this.replaceWith(Object.assign(document.createElement('span'),{className:'${cls} ph',textContent:'—'}))">` : `<span class="${cls} ph" aria-hidden="true">${ini}</span>`;
+}
+const pcell = (p, inner) => `<div class="pcell">${thumb(p.img, p.product)}<div>${inner}</div></div>`;
 const TH_MONTH = ['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
 const dThai = iso => { if (!iso) return '—'; const [y, m, d] = iso.split('-'); return `${+d} ${TH_MONTH[+m - 1]}`; };
 
@@ -359,7 +383,8 @@ const toMin = t => { const [h, m] = t.split(':').map(Number); return h * 60 + m;
 function byProduct(lines) {
   const g = {};
   lines.forEach(l => {
-    const k = l.product; const x = g[k] = g[k] || { product: k, mapped: !!l.baseSku, custom: l.baseSku === 'CUSTOM', units: 0, normal: 0, other: 0, free: 0, net: 0, lives: new Set(), sizes: {} };
+    const k = l.product; const x = g[k] = g[k] || { product: k, mapped: !!l.baseSku, custom: l.baseSku === 'CUSTOM', img: '', units: 0, normal: 0, other: 0, free: 0, net: 0, lives: new Set(), sizes: {} };
+    if (!x.img) x.img = imgOf(l.baseSku);
     x.units += l.qty; x.net += l.net; x.lives.add(l.live);
     if (l.condition === 'Normal') x.normal += l.qty; else x.other += l.qty;
     if (!l.price) x.free += l.qty;
@@ -401,7 +426,7 @@ function render() {
   // top products
   const prods = byProduct(st.lines), maxNet = prods.length ? prods[0].net : 1;
   $('#topProducts').innerHTML = table(['สินค้า', 'ชิ้น', 'ยอดสุทธิ', ''], prods.slice(0, 10).map(p =>
-    `<tr><td class="wrap">${esc(p.product)}${p.mapped ? '' : ' <span class="tag warn">ยังไม่จับคู่</span>'}</td><td class="n">${fmt(p.units)}</td><td class="n">${baht(p.net)}</td><td><div class="bar"><i style="width:${Math.max(2, p.net / maxNet * 100)}%"></i></div></td></tr>`), [false, true, true, false]);
+    `<tr class="click" data-product="${esc(p.product)}" tabindex="0"><td>${pcell(p, esc(p.product) + (p.mapped ? '' : ' <span class="tag warn">ยังไม่จับคู่</span>'))}</td><td class="n">${fmt(p.units)}</td><td class="n">${baht(p.net)}</td><td><div class="bar"><i style="width:${Math.max(2, p.net / maxNet * 100)}%"></i></div></td></tr>`), [false, true, true, false]);
 
   const cond = {}; st.lines.forEach(l => cond[l.condition] = (cond[l.condition] || 0) + l.qty);
   $('#mix').innerHTML = [
@@ -433,11 +458,11 @@ function renderProducts(prods) {
   prods = prods || byProduct(stats(filteredSessions()).lines);
   const q = $('#pSearch').value.trim().toLowerCase();
   const list = q ? prods.filter(p => p.product.toLowerCase().includes(q)) : prods;
-  $('#productTable').innerHTML = table(['สินค้า', 'ชิ้น', 'สภาพดี', 'ตำหนิ/Show', 'ของแถม', 'ยอดสุทธิ', 'เฉลี่ย/ชิ้น', 'จำนวน Live', 'ไซส์ที่ขาย'],
-    list.map(p => `<tr><td class="wrap">${esc(p.product)}${p.custom ? ' <span class="tag">นอก Shopify</span>' : p.mapped ? '' : ' <span class="tag warn">ยังไม่จับคู่</span>'}</td><td class="n">${fmt(p.units)}</td>
+  $('#productTable').innerHTML = table(['สินค้า', 'ชิ้น', 'สภาพดี', 'ตำหนิ/Show', 'ของแถม', 'ยอดสุทธิ', 'เฉลี่ย/ชิ้น', 'จำนวน Live'],
+    list.map(p => `<tr class="click" data-product="${esc(p.product)}" tabindex="0"><td>${pcell(p, esc(p.product) + (p.custom ? ' <span class="tag">นอก Shopify</span>' : p.mapped ? '' : ' <span class="tag warn">ยังไม่จับคู่</span>'))}</td><td class="n">${fmt(p.units)}</td>
       <td class="n">${fmt(p.normal)}</td><td class="n">${p.other ? fmt(p.other) : '—'}</td><td class="n">${p.free ? fmt(p.free) : '—'}</td><td class="n">${baht(p.net)}</td>
-      <td class="n">${baht(p.avg)}</td><td class="n">${p.nLives}</td><td class="muted">${Object.entries(p.sizes).map(([k, v]) => `${esc(k)}×${v}`).join(' ')}</td></tr>`),
-    [false, true, true, true, true, true, true, true, false]);
+      <td class="n">${baht(p.avg)}</td><td class="n">${p.nLives}</td></tr>`),
+    [false, true, true, true, true, true, true, true]);
 }
 $('#pSearch').addEventListener('input', () => renderProducts());
 
@@ -469,11 +494,12 @@ function renderCustomers(st) {
   const q = $('#cSearch').value.trim().toLowerCase(), onlyRep = $('#cRepeat').checked;
   const show = list.filter(x => (!onlyRep || x.nLives > 1) && (!q || (custLabel(x.id) + ' ' + x.id).toLowerCase().includes(q)))
     .sort((a, b) => b.nLives - a.nLives || b.net - a.net);
-  $('#custTable').innerHTML = table(['ลูกค้า', 'จำนวน Live', 'ออเดอร์', 'ชิ้น', 'ยอดสุทธิ', 'ซื้อครั้งแรก', 'ล่าสุด', 'สินค้าที่ซื้อบ่อย'],
-    show.slice(0, 300).map(x => `<tr><td>${esc(custLabel(x.id))}${custLabel(x.id) !== x.id ? ` <span class="muted">${esc(x.id)}</span>` : ''}${x.isNew ? ' <span class="tag">ใหม่</span>' : ''}</td>
+  const nm = id => (DATA.customers && DATA.customers[id]) || '—';
+  $('#custTable').innerHTML = table(['รหัสลูกค้า', 'ชื่อ-นามสกุล', 'จำนวน Live', 'ออเดอร์', 'ชิ้น', 'ยอดสุทธิ', 'ซื้อครั้งแรก', 'ล่าสุด'],
+    show.slice(0, 300).map(x => `<tr><td class="muted">${esc(x.id)}</td><td><button class="linkish" data-cust="${esc(x.id)}">${esc(nm(x.id))}</button>${x.isNew ? ' <span class="tag">ใหม่</span>' : ''}</td>
       <td class="n">${x.nLives}</td><td class="n">${x.nOrders}</td><td class="n">${fmt(x.units)}</td><td class="n">${baht(x.net)}</td>
-      <td>${dThai(firstEver[x.id])}</td><td>${dThai(x.last)}</td><td class="wrap muted">${esc(x.fav)}</td></tr>`),
-    [false, true, true, true, true, false, false, false]) + (show.length > 300 ? `<p class="muted">แสดง 300 จาก ${show.length} คน — ใช้ช่องค้นหาเพื่อหาคนที่ต้องการ</p>` : '');
+      <td>${dThai(firstEver[x.id])}</td><td>${dThai(x.last)}</td></tr>`),
+    [false, false, true, true, true, true, false, false]) + (show.length > 300 ? `<p class="muted">แสดง 300 จาก ${show.length} คน — ใช้ช่องค้นหาเพื่อหาคนที่ต้องการ</p>` : '');
 }
 $('#cSearch').addEventListener('input', () => renderCustomers());
 $('#cRepeat').addEventListener('change', () => renderCustomers());
@@ -491,7 +517,7 @@ document.addEventListener('click', e => {
   [...tb.rows].sort((a, b) => { const x = val(a.cells[i]), y = val(b.cells[i]); const c = typeof x === 'number' && typeof y === 'number' ? x - y : String(x).localeCompare(String(y), 'th'); return dir === 'asc' ? c : -c; })
     .forEach(r => tb.appendChild(r));
 });
-document.addEventListener('click', e => { const r = e.target.closest('tr[data-live]'); if (r) openLive(r.dataset.live); });
+document.addEventListener('click', e => { if (e.target.closest('th')) return; const r = e.target.closest('[data-live]'); if (r) openLive(r.dataset.live); });
 document.addEventListener('keydown', e => { if (e.key === 'Enter') { const r = e.target.closest('tr[data-live]'); if (r) openLive(r.dataset.live); } if (e.key === 'Escape') closeDrawer(); });
 
 /* ---------- live detail ---------- */
@@ -515,13 +541,57 @@ function openLive(id) {
       <dt>ผู้ติดตามใหม่</dt><dd>${na(s.followers)}</dd><dt>ซื้อมากกว่า 1 ชิ้น</dt><dd>${fmt(p.multi)} ออเดอร์ (${pct(p.multiPct)})</dd>
       ${s.notes ? `<dt>หมายเหตุ</dt><dd>${esc(s.notes)}</dd>` : ''}</dl>
       <div class="row" style="margin-top:12px"><button class="btn ghost" onclick="editLive('${esc(s.id)}')">แก้ข้อมูล / ใส่ Review</button></div></div>
-    <div class="panel"><h3>สินค้าที่ขายได้</h3><div class="tbl-wrap">${table(['สินค้า', 'ชิ้น', 'ยอดสุทธิ', 'ไซส์'], prods.map(x => `<tr><td class="wrap">${esc(x.product)}</td><td class="n">${fmt(x.units)}</td><td class="n">${baht(x.net)}</td><td class="muted">${Object.entries(x.sizes).map(([k, v]) => `${esc(k)}×${v}`).join(' ')}</td></tr>`), [false, true, true, false])}</div></div>
+    <div class="panel"><h3>สินค้าที่ขายได้</h3><div class="tbl-wrap">${table(['สินค้า', 'ชิ้น', 'ยอดสุทธิ', 'ไซส์'], prods.map(x => `<tr class="click" data-product="${esc(x.product)}" tabindex="0"><td>${pcell(x, esc(x.product))}</td><td class="n">${fmt(x.units)}</td><td class="n">${baht(x.net)}</td><td class="muted">${Object.entries(x.sizes).map(([k, v]) => `${esc(k)}×${v}`).join(' ')}</td></tr>`), [false, true, true, false])}</div></div>
     <div class="panel"><h3>ออเดอร์ (${orders.length})</h3><div class="tbl-wrap">${table(['ออเดอร์', 'ลูกค้า', 'ชิ้น', 'ยอด', 'สินค้า'], orders.map(o => `<tr><td>${esc(o.order)}</td><td class="muted">${esc(o.customer)}</td><td class="n">${o.units}</td><td class="n">${baht(o.net)}</td><td class="wrap">${o.items.map(esc).join('<br>')}</td></tr>`), [false, false, true, true, false])}</div></div>
     <div class="panel"><h3>Review</h3>${rv ? `<dl class="kv"><dt>ได้ผล</dt><dd>${esc(rv.worked) || '—'}</dd><dt>ไม่ได้ผล</dt><dd>${esc(rv.didnt) || '—'}</dd>
       <dt>ลูกค้าถาม</dt><dd>${esc(rv.questions) || '—'}</dd><dt>ปัญหา</dt><dd>${esc(rv.problems) || '—'}</dd><dt>ครั้งหน้า</dt><dd>${esc(rv.next) || '—'}</dd>
       <dt>โดย</dt><dd>${esc(rv.reviewer)} ${esc(rv.date || '')}</dd></dl>` : '<p class="muted">ยังไม่มี Review — กด "แก้ข้อมูล / ใส่ Review" ด้านบน</p>'}</div>`;
   $('#drawer').hidden = false; $('#dwClose').focus();
 }
+let dwChart = null;
+function openProduct(name) {
+  const S = filteredSessions(), ids = new Set(S.map(s => s.id));
+  const ls = LINES.filter(l => l.product === name && ids.has(l.live)); if (!ls.length) return;
+  const p = byProduct(ls)[0];
+  const bySize = {}; ls.forEach(l => { const z = l.size || 'ไม่ระบุ'; const o = bySize[z] = bySize[z] || { units: 0, net: 0, free: 0, other: 0 }; o.units += l.qty; o.net += l.net; if (!l.price) o.free += l.qty; if (l.condition !== 'Normal') o.other += l.qty; });
+  const sizes = Object.keys(bySize).sort((a, b) => sizeRank(a) - sizeRank(b));
+  const liveDate = {}; DATA.sessions.forEach(s => liveDate[s.id] = s.date);
+  const byLive = {}; ls.forEach(l => { const o = byLive[l.live] = byLive[l.live] || { units: 0, net: 0 }; o.units += l.qty; o.net += l.net; });
+  $('#dwTitle').textContent = p.product;
+  $('#dwSub').innerHTML = (p.custom ? '<span class="tag">นอก Shopify</span> ' : '') + `ข้อมูลตามช่วงที่เลือก (${S.length} Live)`;
+  $('#dwBody').innerHTML = `
+    <div class="row" style="align-items:flex-start;gap:18px;margin-bottom:16px">${thumb(p.img, p.product, true)}
+      <div class="kpis" style="flex:1;margin:0"><div class="kpi hero"><b>${baht(p.net)}</b><span>ยอดสุทธิ</span></div><div class="kpi"><b>${fmt(p.units)}</b><span>ชิ้น</span></div>
+      <div class="kpi"><b>${baht(p.avg)}</b><span>เฉลี่ย/ชิ้น (ไม่นับของแถม)</span></div><div class="kpi"><b>${p.nLives}</b><span>Live ที่ขายได้</span></div></div></div>
+    <div class="panel"><h3>ขายแต่ละไซส์</h3>${sizes.length > 1 || sizes[0] !== 'ไม่ระบุ' ? '<div class="size-wrap"><canvas id="chSize" aria-label="จำนวนชิ้นที่ขายแต่ละไซส์"></canvas></div>' : '<p class="muted">สินค้านี้ไม่แยกไซส์</p>'}
+      <div class="tbl-wrap" style="margin-top:12px">${table(['ไซส์', 'ชิ้น', 'สัดส่วน', 'ยอดสุทธิ', 'ตำหนิ/Show', 'ของแถม'], sizes.map(z => `<tr><td><b>${esc(z)}</b></td><td class="n">${fmt(bySize[z].units)}</td><td class="n">${pct(bySize[z].units / p.units)}</td><td class="n">${baht(bySize[z].net)}</td><td class="n">${bySize[z].other || '—'}</td><td class="n">${bySize[z].free || '—'}</td></tr>`), [false, true, true, true, true, true])}</div></div>
+    <div class="panel"><h3>ขายใน Live ไหนบ้าง</h3><div class="tbl-wrap">${table(['วันที่', 'Live', 'ชิ้น', 'ยอดสุทธิ'], Object.entries(byLive).sort((a, b) => (liveDate[b[0]] || '').localeCompare(liveDate[a[0]] || '')).map(([id, o]) => `<tr class="click" data-live="${esc(id)}" tabindex="0"><td>${dThai(liveDate[id])}</td><td>${esc(id)}</td><td class="n">${fmt(o.units)}</td><td class="n">${baht(o.net)}</td></tr>`), [false, false, true, true])}</div></div>`;
+  $('#drawer').hidden = false; $('#dwClose').focus();
+  if (dwChart) { dwChart.destroy(); dwChart = null; }
+  const cv = document.getElementById('chSize');
+  if (cv) dwChart = new Chart(cv, { type: 'bar', data: { labels: sizes, datasets: [{ data: sizes.map(z => bySize[z].units), backgroundColor: '#1F7A66', borderRadius: 4, maxBarThickness: 48 }] },
+    options: { maintainAspectRatio: false, animation: false, plugins: { legend: { display: false }, tooltip: { callbacks: { label: i => `${i.raw} ชิ้น (${pct(i.raw / p.units)}) · ${baht(bySize[sizes[i.dataIndex]].net)}` } } },
+      scales: { y: { beginAtZero: true, ticks: { precision: 0 }, grid: { color: '#EEF1F5' } }, x: { grid: { display: false } } } } });
+}
+function openCustomer(id) {
+  const ls = LINES.filter(l => l.customer === id); if (!ls.length) return;
+  const liveDate = {}; DATA.sessions.forEach(s => liveDate[s.id] = s.date);
+  const byLive = {}; ls.forEach(l => (byLive[l.live] = byLive[l.live] || []).push(l));
+  const lives = Object.keys(byLive).sort((a, b) => (liveDate[b] || '').localeCompare(liveDate[a] || ''));
+  const net = ls.reduce((a, l) => a + l.net, 0), orders = new Set(ls.map(l => l.order)).size;
+  $('#dwTitle').textContent = (DATA.customers && DATA.customers[id]) || id;
+  $('#dwSub').textContent = `${id} · ประวัติทั้งหมด`;
+  $('#dwBody').innerHTML = `<div class="kpis"><div class="kpi hero"><b>${baht(net)}</b><span>ยอดสุทธิรวม</span></div><div class="kpi"><b>${lives.length}</b><span>Live</span></div>
+      <div class="kpi"><b>${orders}</b><span>ออเดอร์</span></div><div class="kpi"><b>${fmt(ls.reduce((a, l) => a + l.qty, 0))}</b><span>ชิ้น</span></div></div>
+    <div class="panel"><h3>สินค้าที่ซื้อ</h3>${lives.map(lv => `<div class="hist"><div class="row" style="justify-content:space-between"><button class="linkish" data-live="${esc(lv)}"><b>${dThai(liveDate[lv])}</b> <span class="muted">${esc(lv)}</span></button><span>${baht(byLive[lv].reduce((a, l) => a + l.net, 0))}</span></div>
+      ${byLive[lv].map(l => `<div class="pcell" style="margin-top:8px">${thumb(imgOf(l.baseSku), l.product)}<div>${esc(l.product)}<br><span class="muted">${l.size ? 'ไซส์ ' + esc(l.size) + ' · ' : ''}${l.qty} ชิ้น${!l.price ? ' · ของแถม' : ' · ' + baht(l.net)}${l.condition !== 'Normal' ? ' · ' + esc(l.condition) : ''}</span></div></div>`).join('')}</div>`).join('')}</div>`;
+  $('#drawer').hidden = false; $('#dwClose').focus();
+}
+document.addEventListener('click', e => {
+  const pr = e.target.closest('[data-product]'); if (pr && !e.target.closest('th')) return openProduct(pr.dataset.product);
+  const cu = e.target.closest('[data-cust]'); if (cu) return openCustomer(cu.dataset.cust);
+});
+document.addEventListener('keydown', e => { if (e.key === 'Enter') { const pr = e.target.closest('tr[data-product]'); if (pr) openProduct(pr.dataset.product); } });
 function closeDrawer() { $('#drawer').hidden = true; }
 $('#dwClose').onclick = closeDrawer;
 $('#drawer').addEventListener('click', e => { if (e.target.id === 'drawer') closeDrawer(); });
@@ -629,7 +699,7 @@ function renderMapping() {
   const lc = DATA.lowConfidence || [];
   $('#lowPanel').hidden = !lc.length;
   $('#lowConf').innerHTML = table(['รหัสต้นทาง', 'ชื่อในบิล', 'จับคู่กับ', 'เหตุผล', ''], lc.map(x =>
-    `<tr><td>${esc(x.src)}</td><td class="wrap">${esc(x.name)}</td><td class="wrap">${esc(x.baseName || x.base)}<br><span class="muted">${esc(x.base)}</span></td><td class="wrap muted">${esc(x.note)}</td>
+    `<tr><td>${esc(x.src)}</td><td class="wrap">${esc(x.name)}</td><td>${pcell({ img: x.img, product: x.baseName || x.base }, esc(x.baseName || x.base) + '<br><span class="muted">' + esc(x.base) + '</span>')}</td><td class="wrap muted">${esc(x.note)}</td>
      <td style="white-space:nowrap"><button class="btn ghost okLow" data-src="${esc(x.src)}">ถูกต้อง</button> <button class="btn ghost noLow" data-src="${esc(x.src)}">ไม่ใช่</button></td></tr>`), [false, false, false, false, false]);
 }
 document.addEventListener('click', async e => {
@@ -658,6 +728,20 @@ function showTab(t) {
 }
 document.querySelectorAll('.nav button').forEach(b => b.onclick = () => showTab(b.dataset.tab));
 async function reload() { await load(true); }
+$('#imgFile').addEventListener('change', async e => {
+  const f = e.target.files[0]; if (!f) return;
+  try {
+    const wb = XLSX.read(await f.arrayBuffer(), { type: 'array' });
+    const rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { raw: false, defval: '' });
+    if (!rows.length || !('Variant SKU' in rows[0]) || !('Image Src' in rows[0])) throw new Error('ไม่ใช่ไฟล์ Export สินค้าของ Shopify (ต้องมีคอลัมน์ Variant SKU และ Image Src)');
+    const main = {}; rows.forEach(r => { if (r.Handle && r['Image Src'] && !main[r.Handle]) main[r.Handle] = r['Image Src']; });
+    const items = rows.filter(r => r['Variant SKU']).map(r => ({ sku: String(r['Variant SKU']).trim(), url: r['Variant Image'] || main[r.Handle] || '' })).filter(i => i.url);
+    $('#imgInfo').textContent = `พบรูป ${items.length} SKU — กำลังบันทึก…`;
+    const r = await api('POST', { action: 'saveProductImages', items });
+    note($('#imgMsg'), true, `บันทึกรูปแล้ว ${r.updated} SKU · SKU ใน Product Master ที่ยังไม่มีรูป ${r.withoutImage}`);
+    $('#imgInfo').textContent = ''; e.target.value = ''; await reload(); showTab('import');
+  } catch (err) { note($('#imgMsg'), false, err.message); $('#imgInfo').textContent = ''; e.target.value = ''; }
+});
 $('#rematch').onclick = async () => {
   const b = $('#rematch'); b.disabled = true; b.textContent = 'กำลังจับคู่…';
   try { const r = await api('POST', { action: 'rematchSkus' });
